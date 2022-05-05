@@ -1,0 +1,415 @@
+---
+title: "An?lisis Multivariado - Maestr?a en Estad?stica Aplicada"
+author: ""
+date: ""
+output:
+  html_document:
+  pdf_document: default
+  df_print: paged
+---
+\section{Agrupamiento Jerarquico}
+```{r agrupamiento jerarquico, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Agrupar los pa?ses utilizando el m?todo Jer?rquico.
+#Utilizar distancias eucl?deas y metodo de Ward.e
+
+load("satif.rda")
+
+## Agrupaci?n jer?rquica
+#?hclust
+### ver los metodos de aglomeraci?n que utiliza.
+##utilizando el metodo delcentroide 
+HClust.1<-hclust(dist(model.matrix(~-1+ANTEMP+ANTIG+EDUCAC+HORASEM+EDAD+INGRFLIA+INGRPER,Datos)),
+method="centroid")
+plot(HClust.1,main="Cluster Dendrogram for Solution HClust.1",
+     xlab="Observation Number in Data Set Datos",sub="Method=single;Distance=euclidian")
+
+##utilizando el metodo de ward
+HClust.1<-hclust(dist(model.matrix(~-1+ANTEMP+ANTIG+EDAD+EDUCAC+HORASEM+INGRFLIA+INGRPER,Datos)),
+method="ward")
+plot(HClust.1,main="Cluster Dendrogram for Solution HClust.1",
+     xlab="Observation Number in Data Set Datos",sub="Method=ward;Distance=euclidian")
+names(HClust.1)
+#detalle del agrupamiento
+detalle=cbind(HClust.1$merge, HClust.1$height); detalle[1:20,]
+d1<- dist(Datos[,2:8])
+
+d2 <-cophenetic(HClust.1)
+(as.matrix(d2))[1:10,1:10]
+cor(d1,d2) 
+
+apply (Datos[,2:8],2,mean)
+
+#Resumen de los 2 grupos
+summary(as.factor(cutree(HClust.1, k = 2)))# Cluster Sizes
+
+## Generar una variable grupo(con dos grupos)  h2
+Datos$h2 <- c(as.factor(cutree(HClust.1, k = 2)))
+biplot(princomp(model.matrix(~-1+ANTEMP+ANTIG+EDAD+EDUCAC+HORASEM+INGRFLIA+INGRPER,Datos)),
+       xlabs=as.character(cutree(HClust.1,k=2)))
+
+# suma de cuadrados dentro de 2 grupos
+G1=as.matrix(subset(Datos[,2:8],Datos$h2==1))
+apply(G1,2,mean);dim(G1)
+G2=as.matrix(subset(Datos[,2:8],Datos$h2==2))
+apply(G2,2,mean);dim(G2)
+SCD1= sum(diag(var(G1))*(nrow(G1)-1))
+SCD2= sum(diag(var(G2))*(nrow(G2)-1))
+SCDG2=SCD1+SCD2;SCDG2
+
+#Resumen de los 3 grupos
+#Generar las variable de los grupos 3 (h3) y 4 (h4) variables
+summary(as.factor(cutree(HClust.1, k = 3)))# Cluster Sizes
+
+## Generar una variable grupo(con tres grupos)  h3
+Datos$h3 <- c(as.factor(cutree(HClust.1, k = 3)))
+biplot(princomp(model.matrix(~-1+ANTEMP+ANTIG+EDAD+EDUCAC+HORASEM+INGRFLIA+INGRPER,Datos)),
+       xlabs=as.character(cutree(HClust.1,k=3)))
+
+# suma de cuadrados dentro de 3 grupos
+G1=as.matrix(subset(Datos[,2:8],Datos$h3==1))
+apply(G1,2,mean)
+dim(G1)
+G2=as.matrix(subset(Datos[,2:8],Datos$h3==2))
+apply(G2,2,mean)
+dim(G2)
+G3=as.matrix(subset(Datos[,2:8],Datos$h3==3))
+apply(G3,2,mean);dim(G3)
+SCD1= sum(diag(var(G1))*(nrow(G1)-1))
+SCD2= sum(diag(var(G2))*(nrow(G2)-1))
+SCD3= sum(diag(var(G3))*(nrow(G3)-1))
+SCD1;SCD2;SCD3
+SCDG3=SCD1+SCD2+SCD3; SCDG3
+
+
+#Resumen de los 4 grupos
+summary(as.factor(cutree(HClust.1, k = 4)))# Cluster Sizes
+
+## Generar una variable grupo(con 4 grupos)  h4
+Datos$h4 <- c(as.factor(cutree(HClust.1, k = 4)))
+biplot(princomp(model.matrix(~-1+ANTEMP+ANTIG+EDAD+EDUCAC+HORASEM+INGRFLIA+INGRPER,Datos)),
+       xlabs=as.character(cutree(HClust.1,k=4)))
+
+
+# suma de cuadrados dentre de 4 grupos
+G1=as.matrix(subset(Datos[,2:8],Datos$h4==1))
+dim(G1)
+G2=as.matrix(subset(Datos[,2:8],Datos$h4==2))
+dim(G2)
+G3=as.matrix(subset(Datos[,2:8],Datos$h4==3))
+dim(G3)
+G4=as.matrix(subset(Datos[,2:8],Datos$h4==4))
+dim(G4)
+SCD1= sum(diag(var(G1))*(nrow(G1))-1)
+SCD2= sum(diag(var(G2))*(nrow(G2))-1)
+SCD3= sum(diag(var(G3))*(nrow(G3))-1)
+SCD4= sum(diag(var(G4))*(nrow(G4))-1)
+SCD1;SCD2;SCD3;SCD4
+SCDG4=SCD1+SCD2+SCD3+SCD4; SCDG4
+
+#PARA COMPARAR SUMAS DE CUADRADOS
+
+#calculamos el valor F =(SCDT(k grupos)-SCDT (k+1 grupos))/(SCDT(k+1 grupos)/n-k-1)
+# de 2 a 3 grupos
+F=(SCDG2-SCDG3)/(SCDG3/(100-2-1))
+F
+
+# de 3 a 4 grupos
+F=(SCDG3-SCDG4)/(SCDG4/(100-3-1))
+F
+
+###actividad 
+#seleccionar la cantidad de conglomerados con otra medida diferente a la de Hartigan.
+
+# Otros metodos:
+# R2
+S= cov(Datos[,2:8])
+SCT=sum(diag(S))*(nrow(Datos)-1);SCT
+
+# suma de cuadrados dentro de 2 grupos
+G1=as.matrix(subset(Datos[,2:8],Datos$h2==1))
+G2=as.matrix(subset(Datos[,2:8],Datos$h2==2))
+SCD1= sum(diag(var(G1))*(nrow(G1)-1))
+SCD2= sum(diag(var(G2))*(nrow(G2)-1))
+SCDG2=SCD1+SCD2;SCDG2
+R2=1-(SCDG2/SCT);R2
+
+# suma de cuadrados dentro de 3 grupos
+G1=as.matrix(subset(Datos[,2:8],Datos$h3==1))
+G2=as.matrix(subset(Datos[,2:8],Datos$h3==2))
+G3=as.matrix(subset(Datos[,2:8],Datos$h3==3))
+SCD1= sum(diag(var(G1))*(nrow(G1)-1))
+SCD2= sum(diag(var(G2))*(nrow(G2)-1))
+SCD3= sum(diag(var(G3))*(nrow(G3)-1))
+SCD1;SCD2;SCD3
+SCDG3=SCD1+SCD2+SCD3; SCDG3
+R3=1-(SCDG3/SCT);R3
+
+# suma de cuadrados dentro de 3 grupos
+G1=as.matrix(subset(Datos[,2:8],Datos$h4==1))
+G2=as.matrix(subset(Datos[,2:8],Datos$h4==2))
+G3=as.matrix(subset(Datos[,2:8],Datos$h4==3))
+G4=as.matrix(subset(Datos[,2:8],Datos$h4==4))
+SCDG4=SCD1+SCD2+SCD3+SCD4; SCDG4
+R4=1-(SCDG4/SCT);R4
+
+## Analisis resultados
+R2;R3;R4
+# Optamos quedarnos con 3 grupos.
+
+# Metodo CH
+n=nrow(Datos)
+CH2=((SCDG2-SCT)/SCDG2)*((n-2)/(2-1))
+CH3=((SCDG3-SCT)/SCDG3)*((n-3)/(3-1))
+CH4=((SCDG4-SCT)/SCDG4)*((n-4)/(4-1))
+CH2;CH3;CH4
+# El mayor es el de 4 grupos.
+
+
+#Descripci?n de los grupos
+M=apply(Datos[,2:8],2,mean)
+S=diag(var(Datos[,2:8]))
+D=nrow(Datos[,2:8])
+
+# 2 grupos
+G1=as.matrix(subset(Datos[,2:8],Datos$h2==1))
+dim(G1)
+D1=nrow(G1)
+M1=apply(G1,2,mean)
+S1=diag(var(G1))
+Sp=sqrt((S/D1)*((D-D1)/(D-1)));Sp
+T1=(M1-M)/Sp;T1
+gl=D1-1;gl
+Pt1=pt(abs(T1),df=gl, lower.tail=FALSE)
+round(cbind(T1,Pt1),4)
+P1=princomp(G1)
+biplot(P1)
+G2=as.matrix(subset(Datos[,2:8],Datos$h2==2))
+dim(G2)
+D2=nrow(G2)
+M2=apply(G2,2,mean)
+S2=diag(var(G2))
+Sp=sqrt((S/D2)*(D-D2)/(D-1));Sp
+T2=(M2-M)/Sp
+gl=D2-1
+Pt2=pt(abs(T2), df=gl, lower.tail=FALSE)
+round(cbind(T2,Pt2),4)
+
+# 3 grupos
+G1=as.matrix(subset(Datos[,2:8],Datos$h3==1))
+dim(G1)
+D1=nrow(G1)
+M1=apply(G1,2,mean)
+S1=diag(var(G1))
+Sp=sqrt((S/D1)*((D-D1)/(D-1)));Sp
+T1=(M1-M)/Sp;T1
+gl=D1-1;gl
+Pt1=pt(abs(T1),df=gl, lower.tail=FALSE)
+round(cbind(T1,Pt1),4)
+
+G2=as.matrix(subset(Datos[,2:8],Datos$h3==2))
+dim(G2)
+D2=nrow(G2)
+M2=apply(G2,2,mean)
+S2=diag(var(G2))
+Sp=sqrt((S/D2)*(D-D2)/(D-1));Sp
+T2=(M2-M)/Sp
+gl=D2-1
+Pt2=pt(abs(T2), df=gl, lower.tail=FALSE)
+round(cbind(T2,Pt2),4)
+
+G3=as.matrix(subset(Datos[,2:8],Datos$h3==3))
+dim(G3)
+D3=nrow(G3)
+M3=apply(G3,2,mean)
+S3=diag(var(G3))
+Sp=sqrt((S/D3)*((D-D3)/(D-1)));Sp
+T3=(M3-M)/Sp;T3
+gl=D3-1;gl
+Pt3=pt(abs(T3),df=gl, lower.tail=FALSE)
+round(cbind(T3,Pt3),4)
+
+
+```
+\section{Agrupamiento  K MEDIAS}
+```{r k medias}
+# DOS GRUPOS
+.cluster<-kmeans(model.matrix(~-1+ANTEMP+ANTIG+EDAD+EDUCAC+HORASEM+INGRFLIA+INGRPER,Datos),
+                 centers=2,iter.max=10,nstart=10)
+names(.cluster)
+.cluster$size # Cluster Sizes
+.cluster$centers # Cluster Centroids
+.cluster$withinss # Within Cluster Sum of Squares
+.cluster$tot.withinss # Total Within Sum of Squares
+.cluster$betweenss # Between Cluster Sum of Squares
+biplot(princomp(model.matrix(~-1+ANTEMP+ANTIG+EDAD+EDUCAC+HORASEM+INGRFLIA+INGRPER,Datos)),
+       xlabs=as.character(.cluster$cluster))
+points(.cluster$centers,col=1:4,pch=8,cex=2)
+Datos$k2<-c(.cluster$cluster)
+
+#TRES GRUPOS
+.cluster<-kmeans(model.matrix(~-1+ANTEMP+ANTIG+EDAD+EDUCAC+HORASEM+INGRFLIA+INGRPER,Datos),
+                 centers=3,iter.max=10,nstart=1)
+.cluster$size # Cluster Sizes
+.cluster$centers # Cluster Centroids
+.cluster$withinss # Within Cluster Sum of Squares
+.cluster$tot.withinss # Total Within Sum of Squares
+.cluster$betweenss # Between Cluster Sum of Squares
+biplot(princomp(model.matrix(~-1+ANTEMP+ANTIG+EDAD+EDUCAC+HORASEM+INGRFLIA+INGRPER,Datos)),
+       xlabs=as.character(.cluster$cluster))
+points(.cluster$centers,col=1:4,pch=8,cex=2)
+Datos$K3 <- c(.cluster$cluster)
+
+
+```
+\section{K means recortado}
+```{r k medias recortado}
+####OTRO EJEMPLO CON KMEANS Y KMEANS recortado
+load("indice.RDA")
+n=nrow(indice)
+names(indice)
+
+# K MEDIAS
+X=as.matrix(indice[1:n,2:8])
+
+cl2 <- kmeans(X,2)
+cl2
+s2=sum(cl2$withinss);s2
+cl2$size
+
+cl3 <-kmeans(X,3)
+cl3
+s3=sum(cl3$withinss);s3
+cl3$size
+testF3= (s2-s3)/(s3/(n-2-1))
+testF3
+
+cl4 <-kmeans(X,4)
+cl4
+s4=sum(cl4$withinss);s4
+cl4$size
+testF4= (s3-s4)/(s4/(n-3-1))
+testF4
+cl5 <-kmeans(X,5)
+cl5
+s5=sum(cl5$withinss);s5
+cl5$size
+testF5= (s4-s5)/(s5/(n-4-1))
+testF5
+
+#tabla valores F y SCREs#
+g=c()
+s=c()
+f=c()
+for (i in 2:6)
+{cl <- kmeans(X,i)
+w=c((cl$withinss))
+s[i]=sum(cl$withinss)
+f[i]=(s[(i-1)]-s[i])/(s[i]/(n-i))
+g[i]=i}
+ta=cbind(g,s,f)
+w=c(w)
+
+#SE DECIDE TRABAJAR CON 4 GRUPOS
+cl4gru <-kmeans(X,4)
+g1=cl4gru$cluster
+cl4$size
+
+#CLUSTER RECORTADO
+library(RSKC)
+#?(RSKC)
+clrec <- RSKC(X, ncl = 4, alpha = 0.10)
+clrec
+table(clrec$labels )
+#(el grupo de pertenencia)
+clrec$oW
+#(observaciones eliminadas)
+
+
+dim(indice)
+g2=clrec$labels 
+
+indice=cbind(indice,g1,g2)
+par(mfrow=c(1,2))
+biplot(princomp(indice[,2:8]), xlabs=as.character(clrec$labels))
+
+biplot(princomp(indice[,2:8]), xlabs=as.character(cl4gru$cluster))
+```
+
+\section{K modas}
+```{r k modes}
+####K modes
+
+#install.packages"klaR")
+require("klaR")
+
+#edit(kmodes)
+load("alumnos_2018.Rdata")
+x_acat=alumnos_2018[,c("Sexo","Edad_cat","IMC_cat","Vive_en","vivienda","con_quien",
+"procedencia","trabaja","Fuma","actividad f?sica","calificacion_primer_a?o",
+"aprobadas_cat","aplazos_cat","matematicas","Nota Mate I_cat",
+"Nota Mate II_cat","Libros_cat","horas_mate_cat","horas_adm_cat",
+"autocalificaci?n")]
+names(x_acat)
+dim(x_acat)
+
+## run algorithm on x:
+cl <- kmodes(x_acat,3)
+cl
+clasif_2018=cbind(alumnos_2018,cl$cluster)
+write.csv(clasif_2018,"clasif_2018")
+```
+
+\section{ K prototipos}
+
+```{r k proptotipos}
+
+####K Proptotipes
+
+#install.packages("clustMixType")
+require("clustMixType")
+x_p=alumnos_2018
+dim(x_p)
+names(x_p)
+Sexo=as.factor(x_p$Sexo)
+Vive_en= as.factor(x_p$Vive_en)
+vivienda= as.factor(x_p$vivienda)
+con_quien= as.factor(x_p$con_quien)
+procedencia= as.factor(x_p$procedencia)
+trabaja= as.factor(x_p$trabaja)
+calificacion_primer_anio= as.factor(x_p$"calificacion_primer_a?o")
+matematicas= as.factor(x_p$matematicas)
+autocalificacion= as.factor(x_p$"autocalificaci?n")
+Fuma= as.factor(x_p$Fuma)
+Nota_MatI= as.factor(x_p$"Nota Mate I_cat")
+Nota_MatII= as.factor(x_p$"Nota Mate II_cat")
+actividad_fisica=as.factor(x_p$"actividad f?sica")
+
+
+x_proto=cbind.data.frame(x_p$Edad,x_p$IMC,x_p$aprobadas,
+x_p$aplazos,x_p$"Cu?ntas_libro_a?o",x_p$"horas_matem?ticas",
+x_p$"horas_administrativa contable",Sexo,
+Vive_en,vivienda,con_quien,procedencia,trabaja,
+calificacion_primer_anio,matematicas,autocalificacion,
+Fuma,actividad_fisica,Nota_MatI,Nota_MatII)
+dim(x_proto)
+names(x_proto)
+summary(x_proto)
+
+kproto <- kproto(x_proto, 3)
+kproto
+summary(kproto)
+names(kproto)
+kproto$cluster
+
+clasif_2018 <- read.csv("clasif_2018")
+dim(clasif_2018)
+clasif_2018=cbind(clasif_2018,kproto$cluster)
+write.csv(clasif_2018,"clasif_2018")
+
+
+```
+```
+
+

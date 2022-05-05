@@ -1,0 +1,487 @@
+---
+title: "Análisis Multivariado"
+date: "16/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+
+```
+
+La base de datos (alcornoques.RData) corresponde a n = 28 alcornoques y p = 4 variables, que miden los depósitos de corcho (en centigramos) en cada uno de los cuatro puntos cardinales: Norte (N), Este (E), Sur(S) , Oeste(W) .
+
+Matriz de datos. Determinar su dimensión
+
+```{r, message=FALSE,warning=FALSE}
+
+setwd("C:/Users/marti/Desktop/Análisis Multivariado/1/Comandos R")
+load("alcornoques.rdata")
+Datos=as.data.frame(alcornoques)
+dim (Datos)
+n=nrow(Datos)
+p=ncol(Datos)
+
+```
+Determinar las medidas descriptivas del conjunto de datos
+
+```{r, message=FALSE,warning=FALSE}
+#pacman::p_load(RcmdrMisc) # si no está instalada, instala y la carga
+library(RcmdrMisc) 
+medidas=numSummary(Datos, statistics=c("mean", "sd", "IQR", "quantiles", "cv", "skewness", "kurtosis"), quantiles=c(0,.25,.5,.75,1), type="2");medidas
+```
+
+Vector de Media y medianas
+
+```{r, message=FALSE,warning=FALSE}
+
+media=apply(Datos,2,mean);media
+mediana=apply(Datos,2,median);mediana # solo con vectores
+
+```
+
+Vectores de minimo, maximos y cuartiles
+
+
+```{r, message=FALSE,warning=FALSE}
+
+apply(Datos,2,range) # solo con vectores min y max
+apply(Datos,2,fivenum)#minimo, Q1, median, Q3, maximo
+
+```
+
+
+Matriz de varianzas y covarianzas y de correlacion
+
+
+```{r, message=FALSE,warning=FALSE}
+
+S=var(Datos);S
+#pacman::p_load(fBasics) # si no está instalada, instala y la carga
+library(fBasics)
+tr(S) #traza de la matriz
+rk(S) #rango de la matriz
+R=cor(Datos);R
+tr(R)
+#matriz de desvíos y matriz de productos cruzados
+SCT=S*(n-1);SCT
+#Encontrar la matriz de correlación a traves de la matriz de varianzas y covarianzas
+D=diag(1/sqrt(diag(S)));D
+R1=D%*%S%*%D;R1
+R
+#calcular matriz P (de centrado) 
+In=diag(1,n)
+unos=rep(1,n)
+P=In-(1/n)*(unos%*%t(unos));P[1:5,1:5]
+det(P)
+
+```
+
+
+Diagrama de dispersión multivariada
+
+```{r, message=FALSE,warning=FALSE}
+pairs(Datos)
+#Varianza total 
+sum(diag(S))
+varTotal=tr(S)
+#Varianza media
+varmed =varTotal/p; varmed
+#varianza  y desviación generalizada
+Vgen= det(S);Vgen
+DSgen= sqrt(Vgen);DSgen
+#Varianza  y desviación efectiva
+Vefec=Vgen ^(1/p);Vefec
+DSefec=sqrt(Vefec);DSefec
+#Coeficiente de dependencia efectiva
+DR=1-(det(R))^(1/(p-1));DR
+#Matriz de correlación parcial
+partial.cor(Datos)
+
+#correlacion
+library(stats)
+cor<-cor(Datos) #Todas los coeficientes de correlacion arriba del 0.95
+cor
+```
+
+Valores y vectores propios y descomposición espectral de S
+
+```{r, message=FALSE,warning=FALSE}
+S=var(Datos);R=cor(Datos)
+eS=eigen(S); eR=eigen(R);
+eS
+eR
+#Varianza total y generalizada 
+U=eS$vectors;U
+D=diag(eS$values);DVT=sum(D)
+VT1=sum(diag(S))
+VG=prod(diag(D))
+VG1=det(S)
+#Descomposición espectral de la matriz S
+svd(S)
+U%*%D%*%t(U)
+
+```
+
+Estandarización multivariante
+
+```{r, message=FALSE,warning=FALSE}
+eigen=eigen(S)
+eigen
+D1_2=diag(1/sqrt(eigen$values))
+media=apply(Datos,2,mean);media
+unos=rep(1,n)
+Xdes=as.matrix(Datos-kronecker(unos,t(media)))
+U=eigen$vectors
+U
+#Datos con estandarización multivariante
+YM=Xdes%*%U%*%D1_2%*%t(U);YM
+mYM=round(apply(YM,2,mean),2);mYM
+round(var(YM))
+
+```
+
+Medidas de distancias entre observaciones
+
+
+```{r, message=FALSE,warning=FALSE}
+ # Distancia euclidea 
+di=as.matrix(dist(Datos,method="euclidean"))#distancia entre observaciones
+di[1:5,1:5]
+# encontrar la máxima distancia entre una observación y las restantes
+maxdi=c()
+for(i in 1:n)
+maxdi[i]= max(di[,i])
+max()
+#Mostrar la distancia máxima y el nro de observación correspondiente
+max_di=t(cbind(maxdi,max.col(di)));max_di
+# Distancia euclidea estandarizada
+S1=solve(S)
+dih=array(0,dim=c(n,n))
+for(i in 1:n) 
+ for (j in 1:n)
+       dih[j,i]=sqrt((as.matrix(Datos[i,]-Datos[j,]))%*%S1%*% t(as.matrix(Datos[i,]-Datos[j,])))
+dih[1:5,1:5]
+maxdih=c()
+for (i in 1:n)
+maxdih[i]= max(dih[,i])
+
+t(cbind(maxdih,max.col(dih)))
+
+```
+
+Medidas de distancia entre observaciones y la media
+
+
+```{r, message=FALSE,warning=FALSE}
+ #Distancia euclidea
+media=apply(Datos,2,mean);media
+de=array(0,dim=c(n,1))
+for (i in 1:n)  
+de[i]= sqrt((as.matrix(Datos[i,]-media))%*%t(as.matrix(Datos[i,]-media)))
+t(de)
+#Distancias de mahalanobis
+S=cov(Datos)
+mh=sqrt(mahalanobis(Datos,media,S));mh
+D=cbind(de,mh);t(D)
+apply(D,2,min)
+apply(D,2,max)
+#Para detectar valores atípicos
+mh=mahalanobis(Datos,media,S);mh
+p=round(pchisq(c(mh), df=4, lower.tail=FALSE),4);p
+t(cbind(mh,p))
+qchisq(c(0.05), df=4, lower.tail=FALSE)
+plot(mh, xlab="mh")
+abline(h=qchisq(c(0.05), df=4, lower.tail=FALSE))
+
+```
+
+```{r, message=FALSE, warning=FALSE}
+
+#pacman::p_load(fBasics) # si no está instalada, instala y la carga
+library(fBasics)
+k=apply(Datos,2,kurtosis);k
+asim=apply(Datos,2,skewness);asim
+#Asimetria
+dia=array(0,dim=c(n,n))
+S1=solve(S)
+for (i in 1:n) 
+ for (j in 1:n)   
+   dia[i,j]=(as.matrix(Datos[i,]-media))%*%S1%*%t(as.matrix(Datos[j,]-media))
+dia1=dia**3
+Ap=sum(dia1)/(n*n);Ap
+#Curtosis
+Kp=sum(mh**2)/n;Kp
+
+```
+
+Gráficos multivariados
+
+```{r, message=FALSE, warning=FALSE}
+
+stars(Datos[1:28,])
+stars(Datos[1:28,],draw.segments=TRUE,col.segments=palette(rainbow(8)),key.labels=c("N","E","S","O"),key.loc=c(12,2))
+#pacman::p_load(TeachingDemos) # si no está instalada, instala y la carga
+library(TeachingDemos)
+faces(Datos[1:28,])
+faces2(Datos[1:28,])
+#pacman::p_load(scatterplot3d) # si no está instalada, instala y la carga
+#pacman::p_load(lattice) # si no está instalada, instala y la carga
+#pacman::p_load(latticeDensity) # si no está instalada, instala y la carga
+library("scatterplot3d")
+library("lattice")
+library("latticeDensity")
+with(Datos, scatterplot3d(N, S, O, type = "h", angle = 55))
+E4=with(Datos, equal.count(E,4))
+plot(cloud(N ~ S * O | E4, panel.aspect = 0.9, data = Datos))
+
+```
+
+multivariados ver Capitulo 1 de Hardle, W.; Simar, L. (2015) .
+Gráficos de distribución normal bivariada
+
+```{r, message=FALSE, warning=FALSE}
+
+#pacman::p_load(ellipse) # si no está instalada, instala y la carga
+library(ellipse)
+x<-seq(-4,4,len=60)
+y<-seq(-4,4,len=60)
+normal.bivariada<-function(x,y,rho,mu1,sigma1,mu2,sigma2){
+1/(2*pi*sigma1*sigma2*sqrt(1-rho^2))*exp(-1/(2*(1-rho^2))*
+(((x-mu1)/sigma1)^2-2*rho*((x-mu1)/sigma1)*((y-mu2)/sigma2)+
+((y-mu2)/sigma2)^2))
+}
+nf<-layout(matrix(c(1:4),ncol=2,byrow=TRUE),
+widths=c(rep(2,2)),heights=c(rep(2,2)))
+#normal 1
+f<-outer(x,y,normal.bivariada,rho=0.85,mu1=0,sigma1=1,mu2=0,sigma2=1)
+par(mar=c(1,1,4,1))
+persp(x,y,f,theta = 30, phi = 30, col = "lightblue",
+xlab = "X", ylab = "Y", zlab ="Z",main="rho=0.85",cex.main=0.8)
+
+#normal 2
+f<-outer(x,y,normal.bivariada,rho=0.5,mu1=0.5,sigma1=1,mu2=0,sigma2=1)
+par(mar=c(1,1,4,1))
+persp(x,y,f,theta = 30, phi = 30, col = "lightblue",
+xlab = "X", ylab = "Y", zlab ="Z",main="rho=0.5",cex.main=0.8)
+
+#normal 3
+f<-outer(x,y,normal.bivariada,rho=0.0,mu1=0,sigma1=1,mu2=0,sigma2=1)
+par(mar=c(1,1,4,1))
+persp(x,y,f,theta = 30, phi = 30, col = "lightblue",
+xlab = "X", ylab = "Y", zlab ="Z",main="rho=0.0",cex.main=0.8)
+
+#normal 4
+f<-outer(x,y,normal.bivariada,rho=-0.85,mu1=0,sigma1=1,mu2=0,sigma2=1)
+par(mar=c(1,1,4,1))
+persp(x,y,f,theta = 30, phi = 30, col = "lightblue",
+xlab = "X", ylab = "Y", zlab ="Z",main="rho=-0.85",cex.main=0.8)
+
+par(oma=c(1,1,1,1),new=TRUE,font=2,cex=1)
+mtext(outer=T,"Distribucion Normal Bivariada",side=3,cex=0.8)
+#Gráfico de elipse#
+
+#pacman::p_load(ellipse) # si no está instalada, instala y la carga
+library(ellipse)
+par(mfrow=c(2,3))
+plot(ellipse(0.70))
+plot(ellipse(-0.70))
+plot(ellipse(0.85))
+plot(ellipse(0))
+plot(ellipse(0.5))
+
+```
+
+Prueba de normalidad gráfica
+
+```{r, message=FALSE, warning=FALSE}
+
+#####Calcular la distancia de mahalanobis al cuadrado 
+mh=mahalanobis(Datos, media,S)
+p=dim(Datos)[2]
+q=c()
+for (i in 1:n)
+ q[i]=(i-(1/2))/n
+q
+chi=qchisq(q, p)
+ gn= cbind(chi,sort(mh));gn[1:5,]
+ plot(gn,pch=19,col = "blue",main="Grafico para evaluar Normalidad Multivariada",ylim=c(0,40),xlab="X2(6)",ylab="Dis Mah ordenadas");abline(0,1)
+
+```
+
+Asimetria y Kurtosis Multivariada
+
+```{r, message=FALSE, warning=FALSE}
+#Prueba asimetría
+media=apply(Datos,2,mean)
+dia=array(0,dim=c(n,n))
+S1=solve(S)
+for (i in 1:n)
+ for (j in 1:n)
+   dia[i,j]=(as.matrix(Datos[i,]-media))%*%S1%*%t(as.matrix(Datos[j,]-media))
+dia1=dia**3
+Ap=sum(dia1)/(n*n);Ap
+App=Ap*(n/6);App
+glApp=(p/6)*(p+1)*(p+2);glApp
+chiAp=pchisq(App, glApp, ncp=0, lower.tail = FALSE);chiAp
+#Prueba curtosis
+Kp=sum(mh**2)/n;Kp
+Kpp=(Kp-p*(p+2))/(sqrt((8/n)*p*(p+2)))
+normKp=pnorm(Kpp,lower.tail = TRUE)*2;normKp
+#PARA INFERENCIA
+
+#MEDIDAS DESCRIPTIVAS PARA LAS VARIABLES#
+
+#VECTOR DE MEDIAS
+m=apply(Datos,2,mean);m
+#MATRIZ DE COVARIANZAS
+T=(n-1)*S
+T
+ # RUEBA PARA LA MEDIA- T2 HOTELLING
+
+#EVALUAMOS EL VALOR DE T2 PARA mu=(51,46,50,45)
+mu=c(51,46,50,45)
+T2=n*t(m-mu)%*%solve(S)%*%(m-mu)
+T2
+FCrit=qf(0.95,p,(n-p))
+FCrit
+T2Crit=((n-1)*p)*FCrit/(n-p)
+T2Crit
+# Â¿SE RECHAZA LA HIPóTESIS NULA?
+
+#Â¿QuÃ© vectores pertenecen a la región de confianza?
+
+#INTERVALOS DE CONFIANZA SIMULTANEA TRABAJANDO CON T2#
+li=c()
+ls=c()
+for (i in 1:p)
+li[i]=m[i]-sqrt(T2Crit*S[i,i]/n)
+for (i in 1:p)
+ls[i]=m[i]+sqrt(T2Crit*S[i,i]/n)
+int=rbind(li,ls)
+int
+#INTERVALOS DE CONFIANZA SIMULTANEA TRABAJANDO CON BONFERRONI#
+libo=c()
+lsb=c()
+prob=1-(0.05/(2*p))
+prob
+tc=qt(prob,(n-1))
+tc
+for (i in 1:p)
+libo[i]=m[i]-tc*sqrt(S[i,i]/n)
+libo
+for (i in 1:p)
+lsb[i]=m[i]+tc*sqrt(S[i,i]/n)
+intb=rbind(libo,lsb)
+intb
+li-ls
+libo-lsb
+
+```
+
+Prueba de igualdad de vectores de medias
+
+```{r, message=FALSE, warning=FALSE}
+
+#SEPARACION DE LOS DOS GRUPOS# 
+muestra1=Datos[1:14,]
+muestra2=Datos[14:28,]
+n1=0.5*n 
+n2=0.5*n 
+p=4 
+g=2
+ #VECTOR DE MEDIAS
+m1=apply(muestra1,2,mean) 
+m2=apply(muestra2,2,mean) 
+m1; m2 
+#DIFERENCIA DE MEDIAS# 
+dm=m1-m2 
+dm 
+#MATRIZ DE COVARIANZAS COMBINADA#
+c1=cov(muestra1) 
+c2=cov(muestra2) 
+Sp=((n/2-1)*c1+(n/2-1)*c2)/(n-2) 
+ W=(n-g)* Sp
+ B =T-W 
+#COMPARACION DE VECTORES DE MEDIAS# 
+tam=
+T2dif=t(m1-m2)%*%((n1*n2/(n1+n2))* solve(Sp))%*%(m1-m2) 
+T2dif 
+FCrit=qf(0.95,p,(n-p-1)) 
+
+T2Crit=((n-2)*p)*FCrit/(n-p-1) 
+T2Crit
+#Â¿Los vectores de medias de ambos grupos son iguales? 
+
+```
+
+Igualadad de Matrices de Covarianzas
+
+
+
+```{r, message=FALSE, warning=FALSE}
+
+#COCIENTE DE VEROSIMILITUD# 
+ldc1=log(det(c1)) 
+ldc1 
+ldc2=log(det(c2)) 
+ ldc2 
+ldsp=log(det(Sp)) 
+ ldsp 
+ Chi=n*ldsp-n1*ldc1-n2*ldc2 
+Chi
+glChi=0.5*p*(p+1)*(g-1) 
+ glChi 
+ SigChi=pchisq(Chi, glChi,lower.tail = FALSE) 
+
+ SigChi 
+ #PRUEBA DE BOX# 
+  
+logBoxM=ldc1*((n1-1)/2)+ldc2*((n2-1)/2)-ldsp*((n-g)/2) 
+logBoxM 
+gc1=((2*p^2)+(3*p)-1)*((n1-1)^-1+(n2-1)^-1-(n-g)^-1)/(6*(p+1)*(g-1)) 
+gc1 
+gc2=((p-1)*(p+2))*((n1-1)^-2+(n2-1)^-2-(n-g)^-2)/(6*(g-1)) 
+gc2
+v1=0.5*p*(p+1)*(g-1) 
+v1 
+v2=(v1+2)/(abs(gc2-gc1^2)) 
+v2 
+b=(1-gc1-(v1/v2))/v1 
+b 
+b1=(1-gc1-(2/v2))/v2 
+b1
+condicion=gc2-gc1^2 
+condicion 
+FBM1=-2*b*logBoxM 
+FBM2= -(2*b1*v2*logBoxM)/(v1+(2*b1*v2*logBoxM)) 
+if (condicion >0) FBoxM=FBM1 else  FBoxM=FBM2 
+FBoxM 
+SigF=1-pf(FBoxM,v1,v2) 
+ SigF 
+ FCritB=qf(0.95,v1,v2) 
+FCritB 
+#Esta en l límite , NO SE RECHAZA LA HIPÓTESIS NULA PORQUE # 
+   #FBoxM=1.88 ES MAYOR AL VALOR CRITICO F(10,3231.873)(0.95)=1.83#  
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

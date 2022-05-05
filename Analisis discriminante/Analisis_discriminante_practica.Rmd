@@ -1,0 +1,571 @@
+---
+title: "Maestría en Estadística Aplicada- Análisis Multivariado"
+author: ""
+date: "2021"
+output:
+  html_document:
+  pdf_document: default
+  df_print: paged
+---
+\section {Discriminante lineal}
+\subsection{Discriminante Canónico}
+```{r Discriminante canónico, include=TRUE}
+####Lectura de los datos
+datos=read.table("indices10.txt",h=TRUE)
+names(datos)
+
+#DECLARAMOS LA VARIABLE CONDICION (el grupo) COMO FACTOR (1RA. VARIABLE)#
+datos$CONDICIO=factor(datos$CONDICIO)
+levels(datos$CONDICIO)=c("fallido", "normal")
+levels(datos$CONDICIO)
+y=datos$CONDICIO
+
+#Definimos algunos parámetros
+n=length(datos$CONDICIO);n
+n1=0.5*n
+n2=0.5*n
+g=2
+#MEDIDAS DESCRIPTIVAS PARA LAS PRIMERAS CUATRO VARIABLES#
+p=4
+d=datos[1:n,2:5]
+#VECTOR DE MEDIAS#
+m=colMeans(d)
+m
+
+#MATRIZ DE COVARIANZAS#
+S=cov(d)
+T=(n-1)*S
+T
+#SEPARACION DE LOS DOS GRUPOS#
+d1=d[1:(n1),1:p]
+d2=d[((n2)+1):n,1:p]
+m1=colMeans(d1)
+m2=colMeans(d2)
+m1; m2
+#DIFERENCIA DE MEDIAS#
+dm=m1-m2
+dm
+#MATRIZ DE COVARIANZAS COMBINADA#
+c1=cov(d1)
+c2=cov(d2)
+Sp=((n1-1)*c1+(n2-1)*c2)/(n-2)
+Sp
+W=(n-g)* Sp
+W
+B =T-W
+B
+
+#DISCRIMINANTE CANÓNICO utilizando la función eigen#
+e=eigen(solve(W)%*%B);e
+
+e1=as.matrix(e$vectors[,1]);e1
+fc=(t(e1)%*%B%*%e1)/(t(e1)%*%W%*%e1);fc
+
+###Para determinar el punto de corte
+D1=t(e1)%*%m1;D1
+
+D2=t(e1)%*%m2;D2
+C=(D1+D2)/2
+C
+Di=as.matrix(d)%*%e1
+
+yfit=c()
+for (i in 1:length(datos$CONDICIO)) 
+if (Di[i]>C) yfit[i]=1 else yfit[i]=2 
+####OJO el criterio esta al revés del teórico porque la media del grupo 2 es menor a la del grupo 1
+table(yfit,datos$CONDICIO)
+cbind(datos$CONDICIO,yfit)
+
+######otra forma calculando las distancias a la media
+Di_Dmed=cbind((Di-rep(D1,n)),(Di-rep(D2,n)))
+yfit2=c()
+for (i in 1:length(datos$CONDICIO)) 
+if ( abs(Di_Dmed[i,1])<abs(Di_Dmed[i,2])) yfit2[i]=1 else yfit2[i]=2
+table(yfit2,datos$CONDICIO)
+cbind(datos$CONDICIO,yfit2,Di_Dmed,yfit)
+
+r=c(table(yfit,datos$CONDICIO));r
+mr=(r[2]+r[3])/length(datos$CONDICIO)
+mr #TASA DE ERROR DE MALCLASIFICACION
+
+```
+\subsection{Discriminante Canónico con función lda}
+```{r Discriminante canónico con lda, include=TRUE}
+#DISCRIMINANTE CANÓNICO#
+library(MASS)
+#?lda
+dis4.lda=lda(datos$CONDICIO~LIQACID+SOLVENC+PROPACT+PNOCOR,datos)
+
+dis4.lda
+names(dis4.lda)
+dis4.lda$prior
+dis4.lda$counts
+dis4.lda$means
+dis4.lda$scaling
+dis4.lda$lev
+dis4.lda$svdstepcla
+dis4.lda$N
+dis4.lda$xlevels
+
+#Los resultados son distintos entre la funci?n eigen y lda,
+#existe una proporcionalidad entre ellos que surge de normalizar los valores del lda, 
+#mostramos cual es la constante.
+
+mld1= sqrt(sum(dis4.lda$scaling*dis4.lda$scaling)) ;mld1
+dis4.lda$scaling/mld1
+
+##calcular la tasa aparente
+predict.dis4=predict(dis4.lda)
+
+
+T=table(predict.dis4$class,datos$CONDICIO)
+r=c(T);r
+mr=(r[c(2)]+r[c(3)])/length(datos$CONDICIO)
+mr
+
+###calcular la tasa crosvalidada
+dis4.lda.cv=lda(datos$CONDICIO~LIQACID+SOLVENC+PROPACT+PNOCOR,datos,CV=TRUE)
+
+dis4.lda.cv$posterior
+dis4.lda.cv$class
+
+T=table(dis4.lda.cv$class,datos$CONDICIO)
+r=c(T);r
+mr=(r[c(2)]+r[c(3)])/length(datos$CONDICIO)
+mr
+
+
+# TRABAJAMOS CON LAS 10 VARIABLES para hacer una selección#
+dis10.lda=lda(datos$CONDICIO~.,datos, prior=c(0.5,0.5),CV=TRUE)
+names(dis10.lda)
+dis10.lda$posterior
+dis10.lda$class
+
+T=table(dis10.lda$class,datos$CONDICIO)
+r=c(T);r
+mr=(r[c(2)]+r[c(3)])/length(datos$CONDICIO)
+mr
+
+#SELECCION DE VARIABLES POR MINIMA CROSSVALIDADA"
+library(klaR)
+dis10.step=stepclass(CONDICIO~.,datos,"lda",direction="backward")
+ 
+##eliminamos PROPACT y RENTECO
+dis10.lda=lda(datos$CONDICIO~LIQACID+SOLVENC+PNOCOR+AUTOFIN+INMACT+MAREXP+REXP_INT,datos,prior=c(0.5,0.5),CV=TRUE)
+yfit=c()
+pf=dis10.lda$posterior[1:n,1]
+for (i in 1:length(datos$CONDICIO)) 
+if (pf[i]>0.5) yfit[i]=1 else yfit[i]=2
+table(yfit,datos$CONDICIO)
+r=c(table(yfit,datos$CONDICIO));r
+mr=(r[c(2)]+r[c(3)])/length(datos$CONDICIO)
+mr
+
+ 
+##eliminamos SOLVENC,INMPN, RENTECO, y MAREXP.
+
+dis10.lda=lda(datos$CONDICIO~LIQACID+ PROPACT+PNOCOR+AUTOFIN+ INMACT+REXP_INT ,datos,prior=c(0.5,0.5),CV=TRUE)
+ yfit=c()
+pf=dis10.lda$posterior[1:n,1]
+for (i in 1:length(datos$CONDICIO)) 
+if (pf[i]>0.5) yfit[i]=1 else yfit[i]=2
+table(yfit,datos$CONDICIO)
+r=c(table(yfit,datos$CONDICIO));r
+mr=(r[c(2)]+r[c(3)])/length(datos$CONDICIO)
+mr
+
+ 
+##eliminamos INMPN y RENTECO.
+dis10.lda=lda(datos$CONDICIO~LIQACID+SOLVENC+PROPACT+PNOCOR+ AUTOFIN+INMACT+ INMPN+ MAREXP ,datos,prior=c(0.5,0.5),CV=TRUE)
+yfit=c()
+pf=dis10.lda$posterior[1:n,1]
+for (i in 1:length(datos$CONDICIO)) 
+if (pf[i]>0.5) yfit[i]=1 else yfit[i]=2
+table(yfit,datos$CONDICIO)
+r=c(table(yfit,datos$CONDICIO));r
+mr=(r[c(2)]+r[c(3)])/length(datos$CONDICIO)
+mr
+```
+\subsection{Verificar supuestos}
+```{r Verificar supuestos}
+####Lectura de datos
+datos=read.table("indices10.txt",h=TRUE)
+
+####Declarar condicion de la empresa como factor
+datos$CONDICIO=factor(datos$CONDICIO)
+levels(datos$CONDICIO)=c("fallido", "normal")
+levels(datos$CONDICIO)
+y=datos$CONDICIO
+n=length(datos$CONDICIO)
+n1=0.5*n
+n2=0.5*n
+###PARA OBTENER FUNCION LINEAL CON 10 VARIABLES#
+####Calculo de la matriz de varianzas y covarianzas combinada
+p=10
+d=datos[1:n,2:11]
+m=colMeans(d)
+S=cov(d)
+T=(n-1)*S
+d1=d[1:(n/2),1:p]
+d2=d[((n/2)+1):n,1:p]
+m1=colMeans(d1)
+m2=colMeans(d2)
+dm=m1-m2
+c1=cov(d1)
+c2=cov(d2)
+Sp=((n1-1)*c1+(n2-1)*c2)/(n-2)
+iSp=solve(Sp)
+#COEFICIENTES#
+a=-0.5*t((m1-m2))%*%iSp%*%(m1+m2)
+a							#constante#
+b=iSp%*%dm							
+b							#vector de coeficientes#
+
+#ESTADISTICO F FUNCION LINEAL CON 10 VARIABLES#
+
+mah=dm%*%iSp%*%dm			#distancia de Mahalanobis#
+f1=(n-p-1)*n1*n2/n
+f2=(n-2)+(n1*n2*mah/n)
+f3=f1/f2
+b2=c()
+for (i in 1:p) 
+b2[i]=f3*b[i]*b[i]
+#ESTADISTICO F #
+iT=solve(T)
+vf=c()
+for (i in 1:p) vf[i]=(n-2)*iT[i,i]
+vf2=c()
+for (i in 1:p) vf2[i]=b2[i]/vf[i]		#estad?stico F#
+vf2
+FCrit=qf(0.95,1,39)
+FCrit
+
+#ELIMINAMOS LAS VARIABLES CON F MENOR AL CRITICO:#
+#F(1,39)(0.95)=4.09 INMPN    RENTECO  MAREXP#
+
+
+#LEEMOS LAS VARIABLES SELECCIONADAS#
+
+datos2=read.table("ind_tr2.txt",h=TRUE)
+names(datos2)
+#PRUEBAS DE NORMALIDAD#
+dataqq=datos2[1:n,1:7]
+media=apply(dataqq,2,mean)
+desvio=var(dataqq)
+dataqq=(dataqq-media)/desvio
+attach(dataqq)
+x11(width=8,height=8)
+par(mfrow=c(2,4))
+qqnorm(LIQACID,main="")
+abline(0,1)
+title("Fig1: LIQACID")
+qqnorm(SOLVENC,main="")
+abline(0,1)
+title("Fig 2:  SOLVENC")
+qqnorm(PROPACT,main="")
+abline(0,1)
+title("Fig 3: PROPACT")
+qqnorm(PNOCOR,main="")
+abline(0,1)
+title("Fig 4:PNOCOR")
+qqnorm(AUTOFIN,main="")
+abline(0,1)
+title("Fig 5: AUTOFIN")
+qqnorm(INMACT,main="")
+abline(0,1)
+title("Fig 6:INMACT")
+qqnorm(REXP_INT,main="")
+abline(0,1)
+title("Fig 7: REXP_INT")
+#PRUEBA DE BOX DE IGUALDAD DE MATRICES DE COVARIANZAS PARA#
+# VARIABLES SELECCIONADAS TRANSFORMADAS$
+g=2
+p=7
+datos2=read.table("ind_tr2.txt",h=TRUE)
+d=datos2[1:n,9:15]
+d1=d[1:(n/2),1:p]
+d2=d[((n/2)+1):n,1:p]
+c1=cov(d1)
+dc1=log(det(c1))
+dc1
+c2=cov(d2)
+dc2=log(det(c2))
+dc2
+sp=((n/2-1)*c1+(n/2-1)*c2)/(n-2)
+dsp=log(det(sp))
+dsp
+logBoxM=dc1*((n1-1)/2)+dc2*((n2-1)/2)-dsp*((n-g)/2)
+logBoxM
+gc1=((2*p^2)+(3*p)-1)*((n1-1)^-1+(n2-1)^-1-(n-g)^-1)/(6*(p+1)*(g-1))
+gc1
+gc2=((p-1)*(p+2))*((n1-1)^-2+(n2-1)^-2-(n-g)^-2)/(6*(g-1))
+gc2
+v1=0.5*p*(p+1)*(g-1)
+v1
+v2=(v1+2)/(abs(gc2-gc1^2))
+v2
+b=(1-gc1-(v1/v2))/v1
+b
+b1=(1-gc1-(2/v2))/v2
+b1
+condicion=gc2-gc1^2
+condicion
+FBM1=-2*b*logBoxM
+FBM2= -(2*b1*v2*logBoxM)/(v1+(2*b1*v2*logBoxM))
+if (condicion >0) FBoxM=FBM1 else  FBoxM=FBM2
+FBoxM
+Sig=1-pf(FBoxM,v1,v2)
+Sig
+FCritB=qf(0.95,v1,v2)
+FCritB
+#SE RECHAZA LA HIP?TESIS NULA PORQUE #
+#FBoxM=1.84 ES MAYOR AL VALOR CRITICO F(28,8028)(0.95)=1.48# 
+```
+\subsection{Funci?n cuadr?tica y regularizada}
+```{r Funci?n cuadr?tica y regularizado}
+#LECTURA DE DATOS TRANSFORMADOS#
+n=50
+n1=0.5*n
+n2=0.5*n
+datos2=read.table("ind_tr2.txt",h=TRUE)
+
+####lectura de las variables transformadas (para lograr supuesto de normalidad)
+dat_fun=datos2[1:n,8:15]
+names(dat_fun)
+
+
+#DISCRIMINANTE CANONICO CON DATOS TRANSFORMADOS#
+library(MASS)
+dis1.lda=lda(dat_fun$CONDICIO~.,dat_fun, prior=c(0.5,0.5))
+names(dis1.lda)
+dis1.lda$scaling
+
+#PARA CALCULAR LA CROSSVALIDADA LINEAL#
+dis2.lda=lda(dat_fun$CONDICIO~.,dat_fun, prior=c(0.5,0.5),CV=TRUE)
+yfit=c()
+pf=dis2.lda$posterior[1:n,1]
+for (i in 1:length(dat_fun$CONDICIO)) 
+if (pf[i]>0.5) yfit[i]=1 else yfit[i]=2
+table(yfit,dat_fun$CONDICIO)
+r=c(table(yfit,dat_fun$CONDICIO))
+mr=(r[c(2)]+r[c(3)])/length(dat_fun$CONDICIO)
+mr
+
+#DISCRIMINANTE CANONICO CUADRATICO#
+dis1.qda=qda(dat_fun$CONDICIO~.,dat_fun, prior=c(0.5,0.5))
+names(dis1.qda)
+dis1.qda$prior
+dis1.qda$counts
+dis1.qda$means
+dis1.qda$scaling
+dis1.qda$ldet
+
+#?qda
+
+#PARA CALCULAR LA CROSSVALIDADA CUADRATICA#
+dis2.qda=qda(dat_fun$CONDICIO~.,dat_fun, prior=c(0.5,0.5),CV=TRUE)
+names(dis2.qda)
+dis2.qda$posterior
+dis2.qda$class
+T=table(dis2.qda$class,dat_fun$CONDICIO);T
+r2=c(T)
+mr2=(r2[c(2)]+r2[c(3)])/length(dat_fun$CONDICIO)
+mr2###tasa de mal clasificaci?n
+
+######para armar la tabla con el criterio de decisi?n
+yfit2=c()
+pf2=dis2.qda$posterior[1:n,1]
+for (i in 1:length(dat_fun$CONDICIO)) 
+if (pf2[i]>0.5) yfit2[i]=1 else yfit2[i]=2
+table(yfit2,dat_fun$CONDICIO)
+
+r2=c(table(yfit2,dat_fun$CONDICIO))
+mr2=(r2[c(2)]+r2[c(3)])/length(dat_fun$CONDICIO)
+mr2
+
+#FUNCION LINEAL, CUADRATICA Y REGULARIZADA#
+p=7
+dt=dat_fun[,2:8]
+d1t=dt[1:(n/2),1:p]
+d2t=dt[((n/2)+1):n,1:p]
+m1t=colMeans(d1t)
+m2t=colMeans(d2t)
+dmt=m1t-m2t
+c1t=cov(d1t)
+c2t=cov(d2t)
+Spt=((n/2-1)*c1t+(n/2-1)*c2t)/(n-2)
+iSpt=solve(Spt)
+
+#FUNCIONES DISCRIMINANTES CON DATOS TRANSFORMADOS#
+#DISCRIMINANTE LINEAL#
+#CONSTANTES#
+alin1=-0.5*m1t%*%iSpt%*%m1t
+alin2=-0.5*m2t%*%iSpt%*%m2t
+#COEFICIENTES#
+blin1=m1t%*%iSpt
+blin2=m2t%*%iSpt
+alin=alin1-alin2
+blin=blin1-blin2
+alin;blin
+
+#FUNCIONES CUADRATICAS#
+i1t=solve(c1t)
+i2t=solve(c2t)
+det1t=det(i1t)
+det2t=det(i2t)
+#CONSTANTES#
+acua1=-0.5*((m1t%*%i1t%*%m1t)+log(det1t))
+acua2=-0.5*((m2t%*%i2t%*%m2t)+log(det2t))
+acua=acua1-acua2
+#TERMINOS LINEALES #
+bcua1=m1t%*%i1t
+bcua2=m2t%*%i2t
+bcua=bcua1-bcua2
+#TERMINOS CUADRATICOS #
+ccua1=-0.5*i1t
+ccua2=-0.5*i2t
+ccua=ccua1-ccua2
+acua;bcua;ccua
+
+# DISCRIMINANTE REGULARIZADO: FIJANDO VALORES PARA LOS PAR?METROS#
+library(klaR)
+disl.rda=rda(CONDICIO~.,dat_fun, lambda=1, gamma=0, crossval = TRUE)
+names(disl.rda)
+disl.rda$regularization
+disl.rda$error.rate
+#?rda
+# BUSCANDO LOS VALORES DE LOS PARAMETROS QUE MINIMIZAN LA TASA CROSVALIDADA#
+dis.rda=rda(dat_fun$CONDICIO~.,dat_fun, crossval = TRUE)
+dis.rda
+names(dis.rda)
+
+# BUSCANDO 100 VECES#
+param=array(0,dim=c(100,4))
+for (i in 1:100)
+{dis.rda=rda(dat_fun$CONDICIO~.,dat_fun, crossval = TRUE)
+param[i,1]=dis.rda$error.rate[1]
+param[i,2]=dis.rda$error.rate[2]
+param[i,3]=dis.rda$regularization[1]
+param[i,4]=dis.rda$regularization[2]}
+par=min(param[,2])
+param
+par
+```
+\section{Discriminante log?stico}
+```{r Discriminante log?stico}
+datos=read.table("logisticaRsep.txt",h=TRUE)
+names(datos)
+
+#"Categorizar las variables"
+datos$TPROM4_2=factor(datos$TPROM4_2)
+levels(datos$TPROM4_2)=c("De 0,02 a 1,2487","M?s de 1,2487 a 500","> 500")
+levels(datos$TPROM4_2)
+datos$MMODELO=factor(datos$MMODELO)
+levels(datos$MMODELO)=c("Motorola","Nokia","Otros")
+levels(datos$MMODELO)
+datos$TDEUDA=factor(datos$TDEUDA)
+levels(datos$TDEUDA)=c("Sin deuda", "hasta 157,25","> a 157,25")
+levels(datos$TDEUDA)
+datos$REGION_3=factor(datos$REGION_3)
+levels(datos$REGION_3)=c("Bs As, Sta Fe y La Pampa","Resto","Patagonia")
+levels(datos$REGION_3)
+datos$ADQUISI1=factor(datos$ADQUISI1)
+levels(datos$ADQUISI1)=c("Comodato", "Dist.y Leasing","Propio")
+levels(datos$ADQUISI1)
+datos$REST_AG1=factor(datos$REST_AG1)
+levels(datos$REST_AG1)=c("Activo","Baja","Tramita baja y OE")
+levels(datos$REST_AG1)
+datos$RTIP_CTA=factor(datos$RTIP_CTA)
+levels(datos$RTIP_CTA)=c("Negocios", "Otros","Personal","Top")
+levels(datos$RTIP_CTA)
+
+#"Categorizar la variable respuesta"
+datos$RESTADO=factor(datos$RESTADO)
+levels(datos$RESTADO)=c("ACTIVO", "CANCELADO")
+levels(datos$RESTADO)
+    # "Definir muestra de entrenamiento"
+   #Por muestreo
+train = sample(1:9702,6000)
+table(datos$RESTADO[train])
+
+   #Si han sido seleccionada en forma separada
+train=seq(1,5771)
+table(datos$RESTADO[train])
+table(datos$RESTADO[-train])
+
+#"Discriminante log?stico"
+log.glm=glm(RESTADO~.,family="binomial",datos,subset=train)
+summary(log.glm)
+names(log.glm)
+log.glm$coefficients
+#log.glm$residuals      # residuales
+#log.glm$fitted.values  #probabilidades estimadas
+log.glm$iter
+
+#log.glm$y   #clasificacion
+log.glm$x
+log.glm$converged
+
+oddratios=exp(log.glm$coefficients)
+oddratios
+
+#Valores ajustados en la muestra de entrenamiento
+probtrain=log.glm$fitted.values
+
+#Valores ajustados en la muestra test
+zetatest=predict(log.glm,datos[-train,])
+probtest=exp(zetatest)/(1+exp(zetatest))
+
+#Tabla de mal clasificados y probabilidad de clasificaci?n
+grupotrain=c()
+for (i in 1:length(probtrain)) 
+if (probtrain[i]>0.5) grupotrain[i]=1 else grupotrain[i]=0
+table(grupotrain,datos$RESTADO[train])
+rtrain=c(table(grupotrain,datos[train, ]$RESTADO))
+mrtrain=(rtrain[c(2)]+rtrain[c(3)])/length(probtrain)
+
+
+grupotest=c()
+for (i in 1:length(probtest)) 
+if (probtest[i]>0.5) grupotest[i]=1 else grupotest[i]=0
+table(grupotest,datos[-train, ]$RESTADO)
+rtest=c(table(grupotest,datos[-train, ]$RESTADO))
+mrtest=(rtest[c(2)]+rtest[c(3)])/length(probtest)
+mrtrain
+mrtest
+
+```
+\section{Redes neuronales}
+```{r Redes Neuronales}
+#ENTRENAMIENTO DE LA RED
+library(nnet)
+red.nnet<-nnet(RESTADO~.,datos,subset=train,size=4,rang=0.7,decay=5e-4,maxit=200) 
+
+#RESULTADOS
+red.nnet 
+names(red.nnet)
+
+probtrain=red.nnet$fitted.values
+
+#VALORES ESTIMADOS EN LA MUESTRA TEST
+zetatest=predict(red.nnet,datos[-train, ])
+probtest=zetatest
+
+#CALCULO DE LA TASA DE ERROR DE CLASIFICACI?N
+grupotrain=c()
+for (i in 1:length(probtrain)) 
+if (probtrain[i]>0.5) grupotrain[i]=1 else grupotrain[i]=0
+table(grupotrain,datos[train, ]$RESTADO)
+rtrain=c(table(grupotrain,datos[train, ]$RESTADO))
+mrtrain=(rtrain[c(2)]+rtrain[c(3)])/length(probtrain)
+grupotest=c()
+for (i in 1:length(probtest)) 
+if (probtest[i]>0.5) grupotest[i]=1 else grupotest[i]=0
+table(grupotest,datos[-train, ]$RESTADO)
+rtest=c(table(grupotest,datos[-train, ]$RESTADO))
+mrtest=(rtest[c(2)]+rtest[c(3)])/length(probtest)
+mrtrain
+mrtest
+```
+```
+

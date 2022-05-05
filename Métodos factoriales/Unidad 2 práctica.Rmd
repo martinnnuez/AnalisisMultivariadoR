@@ -1,0 +1,597 @@
+---
+title: "Maestría en Estadística Aplicada - Análisis Multivariado"
+author: ""
+date: '2021'
+output:
+  html_document: null
+  pdf_document: default
+  word_document: default
+  df_print: paged
+subtitle: Métodos factoriales
+---
+Componentes principales
+Ejemplo
+La base de datos "indice.rda" corresponde a 50 empresas argentinas que cotizan en bolsa con los siguientes indicadores calculados.\
+
+LIQACID : Liquidez Acida ((Act.Cte. - Bienes de Cambio)/Pasivo Cte)\
+SOLVENC : Solvencia (Activo Total/Pasivo Total)\
+PROPACT : Propiedad del Activo (Patrimonio Neto/Activo)\
+PNOCOR :Pasivo No Cte./Activo,\
+AUTOFIN :Autofinanciación (Utilidades no distribuidas/Activo),\
+INMACT :Inmovilización del Activo (Activo no corriente/Activo),\
+INMPN :Inmovilización del Patrim. Neto (Activo no corriente/P.Neto),\
+RENTECO :Rentabilidad Económica (Utilidad antes de impuestos/Activo Total\
+MAREXP :Margen de la Explotación (Utilidad Bruta/Ventas\
+REXP_INT :Costo Marginal de Financiamiento (Utilidad Neta/Intereses pagados).\
+
+COMPONENTES PRINCIPALES
+```{r CP con eigen, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+
+load("indice.rda")
+dim(indice)
+names(indice)
+ indice=data.frame(indice)
+ 
+rownames(indice) <-indice$EMPRESA
+  #Elimina la  columna (nombre de las empresas)
+indice <- indice[,-1]
+###Consideramos los 8 primeros indices
+indice8=indice[,2:9]
+
+#MATRIZ DE COVARIANZAS
+S=cov(indice8) ;S #idem var(X)
+
+
+#Autovalores y autovectores
+eigen=eigen(S);eigen
+
+sum(diag(S))
+VT=sum(eigen$values);VT
+p=nrow(eigen$vectors)
+v=c()
+for(i in 1:p) 
+  v[i]=eigen$values[i]/VT*100
+v
+
+#MATRIZ EN DESVIOS
+Xdes=scale(indice8, center = TRUE, scale = FALSE)
+
+#C?lculo de las componentes principales
+Y=Xdes%*%eigen$vectors ;Y[1:8,1:3]
+
+Ymed =apply(Y,2,mean)
+
+   #Conservan la variabilidad inicial
+     #mostrar con la varianza total
+     varTotal= sum(diag(S));varTotal
+     sum(diag(var(Y)))
+     #mostrar con la varianza generalizada
+     Vgen= det(S); Vgen
+     det(var(Y))
+```
+Utilizando las funciones prcomp y princomp
+```{r CP con prcomp, include=TRUE}
+#UTILIZANDO EST/ANALISIS DIMENSIONAL, TRABAJANDO CON 8 VARIABLES,
+  #MATRIZ DE COVARIANZAS
+.PC <- prcomp(indice8);.PC
+
+screeplot(.PC)
+summary(.PC)
+names(.PC)
+.PC$sdev #desviaci?n est?ndar de las componentes
+.PC$center# las medias de las variables
+
+.PC$sd^2  # component variances
+varcomp=sum(.PC$sd^2 ); varcomp
+
+#gr?fico de los 4 primeras vectores propios
+U=.PC$rotation
+par(mfrow=c(2,2)) 
+barplot(U[,1])
+barplot(U[,2])
+barplot(U[,3])
+barplot(U[,4])
+
+#componenete 1
+.PC$x[,1]
+
+#guardar las componentes
+#indice8$PC1 <- .PC$x[,1]
+#indice8$PC2 <- .PC$x[,2]
+#indice8$PC3 <- .PC$x[,3]
+par(mfrow=c(1,1))
+#biplot de las dos primeras componentes
+biplot(.PC)
+par(mfrow=c(1,2))
+#biplot de las con  otras componentes
+biplot(.PC,choices=c(1,3))
+biplot(.PC,choices=c(2,3))
+  #MATRIZ DE CORRELACION
+.PCC <- prcomp(indice8[,1:8], scale.=TRUE);.PCC
+screeplot(.PCC)
+summary(.PCC)
+.PCC$sdev #desviaci?n est?ndar de las componentes
+.PCC$center# las medias de las variables
+.PCC$scale
+## .PCC$x para encontrar las componentes
+
+.PCC$sd^2  # component variances
+varcomp=sum(.PCC$sd^2 ); varcomp
+
+#gr?fico de los 4 primeras vectores propios
+U=.PCC$rotation
+biplot(.PCC)
+
+#Covarianza entre comp. princ. y variables originales estandarizadas
+
+Sd=diag(.PCC$sd^2)
+
+CovZ_Y=U%*%Sd;CovZ_Y
+
+#Correlacion
+#matriz diagonal con los valores  propios
+Ds=diag(.PCC$sd)
+#correlaci?n entre las variables originales y las componentes al cuadrado
+CorZ_Y_2=(U%*%Ds)^2;CorZ_Y_2
+
+sumfil=c()
+for (i in 1:8)
+sumfil[i]=sum(CorZ_Y_2[i,])
+sumfil
+
+sumcol=c()
+for (i in 1:8)
+sumcol[i]=sum(CorZ_Y_2[,i])
+sumcol
+
+#Ejercicio: Calcular las componentes utilizando la funci?n "princomp"
+```
+Componentes principales robustas
+```{r CP robustas}
+library(pcaPP)
+x<-PCAproj(indice8,k = 6,method="mad",CalcMethod="eachobs",center=l1median_NLM,scale="mad")
+
+screeplot(x)
+biplot(x)
+#biplot(x,xlabs=as.character(data8$G2))
+
+summary(x)
+x$loadings 
+x$center
+#x$scores (para encontrar las componentes)
+
+```
+Componentes principales comunes
+```{r CP comunes ,eval=TRUE, include=TRUE}
+library(multigroup)
+#definir la variable grupo
+ Group = as.factor(indice$CONDICIO)#calcular componentes principales robustas
+ #calcular componentes principales robustas
+res.FCPCA = FCPCA(indice[,3:10], Group,  Scale =FALSE)
+res.FCPCA
+# Grafico de los dos primeros ejes
+  scoreplot(res.FCPCA, axes=c(1,2))
+summary(res.FCPCA)
+  names(res.FCPCA)
+  res.FCPCA$exp.var
+  res.FCPCA$lambda
+  res.FCPCA$loadings.common
+
+```
+ESCALAMIENTO MULTIDIMENSIONAL
+ 
+```{r Escalamiento multidimensional, include=TRUE }
+library(readxl)
+datos_espania <- read_excel("datos_espania.xls")
+
+Datos=as.data.frame(datos_espania)
+rownames(Datos)=Datos[,1]
+Datos=Datos[,-1];
+Datos
+
+ n=nrow(Datos);n
+In=diag(1,n)
+unos=rep(1,n)
+P=In-(1/n)*(unos%*%t(unos));P
+dim(P)
+ Q=(-0.5)*(P%*%(as.matrix(Datos^2))%*%P); Q
+
+ #c?lculo de las dos primeras coordenadas
+  eigen=eigen(Q);eigen
+ 
+Y=eigen$vectors[,1:2]%*%diag(sqrt(eigen$values[1:2]));Y
+
+  k=2
+  MD=cmdscale(Datos,k=k,eig=T, x.ret = TRUE);MD
+
+ #  Calculamos los autovalores
+ MD$eig
+
+ # Normalizo los dos primeros autovalores
+ sum(abs(MD$eig[1:k]))/sum(abs(MD$eig))
+
+ MD$GOF
+
+##La solución con dos dimensiones es adecuada
+# Se muestran las coordenadas de las ciudades en las dos dimensiones
+ MD$points[,1:2]
+
+ # Se dibujan las coordenadas de las ciudades en las dos dimensiones
+
+plot(-MD$points[,1],MD$points[,2],type="n",xlab="Coordenada1",ylab="Coordenada 2", 
+     xlim = c(-2000,1500),ylim=c(-2000,1500))
+text(-MD$points[,1],MD$points[,2],labels=row.names(Datos))
+
+###Ejmeplo de los productos de Pe?a
+
+
+load("productos.RData")
+
+prod=as.data.frame(productos)
+rownames(prod)=prod[,1]
+prod=prod[,-1]
+library(MASS)
+ help(isoMDS)
+k=2
+prod.mds = isoMDS(as.matrix(prod),k=k,p=2)##p potencia de Minkowki,k= coordendas
+names(prod.mds)
+prod.mds$points
+prod.mds$stress
+
+plot(prod.mds$points, type = "n")
+text(prod.mds$points, labels = as.character(rownames(prod)))
+ 
+MDprod=cmdscale(prod,k=k,eig=T);MDprod
+
+sum(abs(MDprod$eig[1:2]))/sum(abs(MDprod$eig))
+
+sum(MDprod$eig[1:2]^2)/sum(MDprod$eig^2)
+
+ #La solución con dos dimensiones es adecuada
+ # Se muestran las coordenadas de los productos en las dos dimensiones
+#MDprod$points[,1:2]
+ 
+ # Se dibujan las coordenadas de los productos en las dos dimensiones
+ 
+plot(-MDprod$points[,1],MDprod$points[,2],type="n",xlab="Coordenada1",ylab="Coordenada 2")
+text(-MDprod$points[,1],MDprod$points[,2],labels=row.names(prod))
+
+```
+
+ANALISIS DE CORRESPONDENCIA
+
+ANALISIS DE CORRESPONDENCIA SIMPLE
+```{r Ejemplo ACS}
+x=read.table("eph.dat",header=TRUE)
+dim(x)
+names(x)
+
+#SEXO 'Sexo'	
+#1 = var?n 	2 = mujer
+
+#ESTCIV	Estado Civil
+#1 = unido	2 = casado	3 = separado/a ? divorciado  4 = viudo	5 = soltero
+
+#NIVEL_ED	'M?ximo Nivel Educativo Alcanzado' 	
+#1 = Primaria 2 Secundaria 3= Superior Universitaria 
+
+#ESTADO 'Condici?n de Actividad'		
+#1 = Ocupado 	2 = Desocupado 	3 = Inactivo
+
+#seleccionamos variables estado Civil y educacion y las definimos como factor
+ESTCIVIL=x[,2]
+EDUC=x[,3]
+
+EDUC=factor(EDUC)
+levels(EDUC)=c("Primario", "Secund.", "TerciarioUniv.")
+
+ESTCIVIL=factor(ESTCIVIL)
+levels(ESTCIVIL)=c("unido", "casado", "separado","viudo","soltero")
+
+#generamos una tabla a partir de estas variables
+T=table(ESTCIVIL,EDUC)
+T
+X=as.matrix(T);X
+
+di=dim(X);di
+f=di[1];f
+c=di[2];c
+n=sum(X);n
+
+ #matriz de frecuencias relativas#
+
+F=(1/n)*X;F  
+
+#frecuencias relativas marginales por fila
+unos=rep(1,c);unos
+sf=c(F%*%unos);sf
+Df=diag(sf);Df
+
+#matriz frecuencias elativas condicionadas por fila.
+PF=solve(Df)%*%F; PF 
+PFsum=PF%*%unos;PFsum   ##control de suma filas
+
+
+#frecuencias relativas marginales por columna
+unoss=rep(1,f)
+sc=c(t(F)%*%unoss);sc
+Dc=diag(sc);Dc
+
+#matriz frecuencias relativas condicionadas por columna.
+PC=solve(Dc)%*%t(F);PC
+PCsum=PC%*%unoss;PCsum   ##control de suma columnas
+
+#Matriz de datos transformados ZF (para filas) 
+#(proyecci?n de filas en el espacio de las columnas)
+ZF=solve(Df) %*% F %*% solve(Dc^(0.5));ZF
+
+
+#Matriz de datos transformadosa ZC (para columnas) 
+  #(proyecci?n de columnas en el espacio de las filas)
+ZC=solve(Dc)%*% t(F )%*% solve(Df^(0.5));ZC
+
+
+#Matriz para obtener los valores y vectores propios
+Zas=solve(Df^(0.5))%*% F %*% solve(Dc^(0.5));Zas
+
+#descomposicion singular#
+eigen(t(Zas)%*%Zas)
+eigen(Zas%*%t(Zas))
+
+ds=svd(Zas)
+ds
+
+Zasvp=(ds$d)^2 ;Zasvp  #valores propios#
+
+val.propios=Zasvp[2:3]
+l=length(val.propios);l
+v.p.acumulados=c()
+for (i in 1:l){v.p.acumulados[i]=sum(val.propios[1:i])}
+s=sum(val.propios)
+porcentaje=(1/s)*v.p.acumulados
+vvac=cbind(val.propios,porcentaje)
+vvac
+
+A=ds$v[,2:3];A   #vectores propios filas (individuos)#
+
+B=ds$u[,2:3] ;B #vectores propios columnas (variables)#
+
+Y=ZF%*%A  ;Y    #coordenadas filas#
+rownames(Y)=rownames(T)
+
+W=ZC%*%B     #coordenadas col#
+rownames(W)=colnames(T)
+Y
+W
+biplot(Y,W,var.axes = TRUE,xlab="dim 1", ylab="dim 2")
+
+###Usando el paquete ca
+
+library(ca)
+mod1=ca(X);mod1
+plot(mod1)
+
+```
+
+ANALISIS DE CORRESPONDENCIA MULTIPLE
+
+```{r AFCM}
+#tabla con  las variables dummy
+tabla=read.table("eph_dummy.dat",header=TRUE)
+dim(tabla)
+names(tabla)
+
+#Est : Estado civil("unido", "casado", "separado","viudo","soltero")
+#NE: Nivel de educaci?n("Primario", "Secund.", "TerciarioUniv.")
+#EST: ESTADO (ocupado, desocupado, subocupado)
+
+#se eligen 40 observaciones 
+X=as.matrix(tabla[1:40,])
+#definir tama?o de filas y columnas
+di=dim(X);di
+f=di[1];f
+c=di[2];c
+
+ #matriz de frecuencias relativas#
+F=(1/f)*X  
+
+#frecuencias relativas marginales por fila
+unos=c(rep(1,c))
+sf=(c(F%*%unos))
+Df=diag(sf)
+di2=dim(Df)
+#matriz de porcentajes fila.
+PF=solve(Df)%*%F
+
+#frecuencias relativas marginales por columna
+unoss=c(rep(1,f))
+sc=c(t(F)%*%unoss)
+Dc=diag(sc)
+PC=solve(Dc)%*%t(F)
+
+#Matriz de datos transformados ZF (para nube de individuos) 
+  #(proyecci?n de filas en el espacio de las columnas)
+ZF=solve(Df)%*%F%*%solve(Dc^(0.5))
+dim(ZF)
+#Matriz de datos transformados ZC (para nube de variables) 
+  #(proyecci?n de columnas en el espacio de las filas)
+ZC=solve(Dc)%*%t(F)%*%solve(Df^(0.5))
+dim(ZC)
+
+#Matriz para obtener los valores y vectores propios
+Zas=solve((Df^(0.5)))%*%F%*%solve((Dc^(0.5)))
+dim(Zas)
+#descomposicion singular#
+ds=svd(Zas)
+
+Zasvp=(ds$d)^2 ;Zasvp  #valores propios#
+
+val.propios=Zasvp[2:c];val.propios
+l=length(val.propios);l
+v.p.acumulados=c()
+for (i in 1:l){v.p.acumulados[i]=sum(val.propios[1:i])}
+s=sum(val.propios)
+porcentaje=(1/s)*v.p.acumulados
+vvac=cbind(val.propios,porcentaje)
+vvac
+
+ds$v[,1]
+A=ds$v[,2:c]   #vectores propios filas (individuos)#
+dim(A)
+B=ds$u[,2:c]  #vectores propios columnas (variables)#
+dim(B)
+
+Y12=ZF%*%A[,1:2]    #2 primeras coordenada fila#
+
+Y=ZF%*%A     #10 coordenada fila#
+
+W12=ZC%*%B[,1:2]
+rownames(W12)=colnames(tabla);W12
+
+W=ZC%*%B     #10 coordenadas col#
+rownames(W)=colnames(tabla)
+
+biplot(Y,W,var.axes = TRUE,xlab="dim 1", ylab="dim 2")
+#plot(W)
+#identify(W[,1],W[,2])
+
+#utilizando el  la funci?n mjca (del paquete ca)
+x=read.table("eph.dat",header=TRUE)
+
+dim(x)
+library(ca)
+mod3=mjca(x[,1:4]) ; mod3
+plot.mjca(mod3)
+Coord=cacoord(mod3) ####extrae las coordenadas
+Coord$row[1:5,]  # coordenadas columnas
+Coord$col #coordenadas filas
+names(mod3)
+mod3$colnames
+rownames(W)=colnames(tabla)
+mod3$Burt
+mod3$levelnames
+
+plot(mod3)
+biplot(mod3$rowpcoord,mod3$colpcoord,var.axes = TRUE,xlab="dim 1", ylab="dim 2")
+
+```
+ANALISIS FACTORIAL EXPLORATORIO
+
+Ejemplo\
+
+Estos datos corresponden a 51 observaciones y 9 variables.
+ Las observaciones son las provincias españolas más Ceuta y Melilla,
+ que aparecen unidas como una única provincia, y las variables los
+ nueve epígrafes en los que se desglosa la Encuesta de Presupuestos 
+Familiares en Espa?a.
+Las variables son:
+
+G.1 alimentación\
+G.2 vestido y calzado \
+G.3 vivienda\
+G.4 mobiliario dom?stico\
+G.5 gastos sanitarios\
+G.6 transporte\
+G.7 enseñanza y cultura \
+G.8 turismo y ocio\
+G.9 otros gastos\
+
+Base: epf.dat.Fuente: Encuesta de Presupuestos Familiares del a?o 1990/91
+
+```{r An?lisis Factorial. Analisis de la base de datos}
+Datos=read.table("epf.dat",header=TRUE)
+Datos=Datos[,2:10]
+# 
+library(psych)### para trabajar con modelos m?s complejos de analisis factorial
+dim(Datos)
+
+Descriptivo=describe(Datos) # del paquete psych (resultados como tabla)
+
+#Describe la estructura de correlacion de los datos.
+    #Si un grupo de variables est?n altamente correlacionadas entre ellas pero a su vez no están tan correlacionadas con otro grupo esto permite sospechar que existe un factor no observado que causa este comportamiento diferenciado"
+lowerCor(Datos)
+
+#pairs.panels(Datos,show.points=FALSE)
+ #para observar la estructura de correlaci?n diferenciada por colores según el grado de la correlación
+#cor.plot(Datos, numbers = TRUE)
+
+
+```
+
+```{r Análisis Factorial}
+
+
+# ##una forma de ver el número  de factores
+Nfac=principal(Datos, nfactors = 6, covar = FALSE) #funci?n del paquete pysch
+Nfac
+Nfac$loadings
+Nfac$values
+princomp(Datos,cor=TRUE) 
+## ?Cuántas componentes elegiría?
+## determine el nro de factores utilizando la la desigualdad (p-m)2 >= p + m
+
+#factanal (paquete stats) estima por máxima verosimilitud
+.FA <- factanal(Datos,factors=3, rotation="none", scores="Bartlett", data=Datos);.FA
+.FA
+names(.FA)
+.FA$converged
+ unclass(.FA$loadings)###muestra todas las carga
+ 
+ 
+ 
+#fa (paquete psych) se puede elegir el metodo de estimaci?n 'pa' para ejes principales, 'ml' para m?xima verosmilitud
+.FA <- fa(Datos,nfactors=2, rotate="none",fm="pa");.FA
+.FA$uniquenesses
+.FA$weights
+.FA <- fa(Datos,nfactors=2, rotate="none",fm="lm");.FA
+.FA$uniquenesses
+.FA$weights
+
+#analice los resultados de los cargas factoriales y las varianzas residuales segun los metodos.
+
+#determinar el nro de factores 
+ #para determinar el nro de factores 
+library(nFactors)
+eig=eigen(cor(Datos))
+nBartlett(eig$values, N=51)#indica el nro de factores con tres prue as (bartlett,anderson  y lawley )
+# https://www.rdocumentation.org/packages/nFactors/versions/2.3.1/topics/nBartlett
+
+#- Estimando por máxima verosimilitud determine el número de factores comparando el resultado de la prueba estadística y algun criterio de selección.
+
+
+
+# definida la cantidad de factores determinar los resultados con las rotaciones
+library(GPArotation)
+#"varimax":maximiza la suma de varianzas de las cargas factoriales al cuadrado dentro de cada factor (opera en las columnas de la matriz de carga)
+#"quartimax" maximiza la dispersión de las cargas dentro  de los variables  entre los factores. Opera en filas de la matriz de cargas
+
+#- determinado el modelo encuentre los factores. 
+#- grafique las ciudades segun los factores determinados
+
+
+.FA <- fa(Datos,nfactors=3, rotate="none",fm="lm");.FA
+.FA <- fa(Datos,nfactors=3, rotate="varimax",fm="lm");.FA
+.FA <- fa(Datos,nfactors=3, rotate="quartimax",fm="lm");.FA
+.FA$uniquenesses
+.FA$weights
+
+
+.FA <- fa(Datos,nfactors=4, rotate="none",fm="pa");.FA
+.FA$uniquenesses
+.FA$weights
+# .FA$scores     # c?lculo de los factores 
+
+biplot(.FA$scores,unclass(.FA$loadings))
+
+# Datos$F1 <- .FA$scores[,1] # para agregar los factores
+ .FA_R1<-factanal(Datos,factors=2,rotation="varimax",scores="Bartlett",data=Datos)
+.FA_R1
+#biplot(.FA_R1$scores,unclass(.FA$loadings))
+
+# Datos$F1 <- .FA$scores[,1] # para agregar los factores
+ .FA_R1<-factanal(Datos,factors=1,rotation="none",scores="Bartlett",data=Datos)
+.FA_R1
+
+```
+
